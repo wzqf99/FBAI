@@ -1,1 +1,1 @@
-# aigc
+aigc
