@@ -2,7 +2,7 @@
  * @Author: yelan wzqf99@foxmail.com
  * @Date: 2025-01-06 19:37:09
  * @LastEditors: yelan wzqf99@foxmail.com
- * @LastEditTime: 2025-01-08 14:53:30
+ * @LastEditTime: 2025-01-08 15:03:28
  * @FilePath: \AI_vue3\vue-aigc\src\components\Chat.vue
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -10,7 +10,7 @@
   <div class="chat">
     <h1 class="content">{{ responseResult }}</h1>
     <input type="text" v-model="userInput" placeholder="请输入" />
-    <button @click="sendMessage">Send</button>
+    <button @click="sendMessage">发送请求</button>
   </div>
 </template>
 
