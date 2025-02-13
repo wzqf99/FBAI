@@ -2,7 +2,7 @@
  * @Author: yelan wzqf99@foxmail.com
  * @Date: 2025-01-06 19:37:09
  * @LastEditors: yelan wzqf99@foxmail.com
- * @LastEditTime: 2025-01-08 17:15:28
+ * @LastEditTime: 2025-02-08 16:52:08
  * @FilePath: \AI_vue3\vue-aigc\src\components\Chat.vue
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -15,7 +15,7 @@
     <!-- 整个聊天区域 -->
     <div class="chat">
       <!-- 聊天交互区域 -->
-      <div class="chat-box">{{ responseResult }}</div>
+      <div class="chat-box" v-html="responseResult"></div>
       <!-- 发出提问区域 -->
       <div class="input-box">
         <input class="output" type="text" v-model="userInput" placeholder="给Chatgpt发送消息" />
@@ -35,14 +35,16 @@ const userMessages = ref([
   { role: "user", content: "你是谁？" }
 ]);
 
-/* function sendMessage() {
+function sendMessage() {
   // 1. 将 messages 数组 JSON.stringify
   userMessages.value.push({ role: "user", content: userInput.value });
   const encodedMessages = encodeURIComponent(JSON.stringify(userMessages.value));
 
   // 2. 拼接到 SSE URL 的 query 参数中
   // 比如 /api/test?messages=...
-  const url = `http://localhost:3000/api/test?messages=${encodedMessages}`;
+  /* 测试接口 const url = `http://localhost:3000/api/test?messages=${encodedMessages}`; */
+  const url = `http://localhost:3000/api/article/generateArticleDraft?articleType=通用写作&languageStyle=幽默&contentTemplate=关于最近新出的电影龟兔赛跑写一篇文章&max_token=500`;
+
   console.log("Sending message:", url);
   const eventSource = new EventSource(url);
 
@@ -58,7 +60,7 @@ const userMessages = ref([
     console.error("SSE Error:", error);
     eventSource.close();
   };
-} */
+}
 
 </script>
 
