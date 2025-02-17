@@ -2,7 +2,7 @@
  * @Author: yelan wzqf99@foxmail.com
  * @Date: 2025-01-06 19:37:09
  * @LastEditors: yelan wzqf99@foxmail.com
- * @LastEditTime: 2025-02-08 16:52:08
+ * @LastEditTime: 2025-02-17 19:26:37
  * @FilePath: \AI_vue3\vue-aigc\src\components\Chat.vue
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -20,6 +20,7 @@
       <div class="input-box">
         <input class="output" type="text" v-model="userInput" placeholder="给Chatgpt发送消息" />
         <button @click="sendMessage">发送</button>
+        <button @click="editTextByAI">测试</button>
       </div>
     </div>
   </div>
@@ -34,6 +35,27 @@ const userMessages = ref([
   { role: "system", content: "You are a helpful assistant." },
   { role: "user", content: "你是谁？" }
 ]);
+
+const editTextByAI = () => {
+  console.log("editTextByAI");
+  const url = `http://localhost:3000/api/article/rewriteText?action=shorten&text=饺子给申公豹赋予了血肉，塑造了一个有血有肉的反派，使得观众逐渐对他产生好感。转而，剧中的其他反派角色则成了“最令人讨厌”的存在，他们所做的事，越来越出乎意料。&style=正式`;
+  console.log("Sending message:", url);
+
+  const eventSource = new EventSource(url);
+
+  // 3. 监听 SSE 消息
+  eventSource.onmessage = (event) => {
+    console.log("Received message:", event.data);
+    // 这里把数据拼接到 responseResult，或推入一个 "assistant" 角色的消息里
+    responseResult.value = responseResult.value + event.data;
+  };
+
+  // 4. 监听 SSE 错误事件
+  eventSource.onerror = (error) => {
+    console.error("SSE Error:", error);
+    eventSource.close();
+  };
+}
 
 function sendMessage() {
   // 1. 将 messages 数组 JSON.stringify
