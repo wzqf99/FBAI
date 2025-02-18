@@ -2,7 +2,7 @@
  * @Author: yelan wzqf99@foxmail.com
  * @Date: 2025-01-06 19:37:09
  * @LastEditors: yelan wzqf99@foxmail.com
- * @LastEditTime: 2025-02-17 19:26:37
+ * @LastEditTime: 2025-02-18 17:16:17
  * @FilePath: \AI_vue3\vue-aigc\src\components\Chat.vue
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -21,12 +21,14 @@
         <input class="output" type="text" v-model="userInput" placeholder="给Chatgpt发送消息" />
         <button @click="sendMessage">发送</button>
         <button @click="editTextByAI">测试</button>
+        <button @click="tohome">跳转</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router';
 import { ref } from 'vue';
 
 const userInput = ref("");
@@ -35,6 +37,12 @@ const userMessages = ref([
   { role: "system", content: "You are a helpful assistant." },
   { role: "user", content: "你是谁？" }
 ]);
+
+const router = useRouter()
+const tohome = () => {
+  console.log("触发了跳转home");
+  router.push('/home')
+}
 
 const editTextByAI = () => {
   console.log("editTextByAI");
