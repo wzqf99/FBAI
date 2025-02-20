@@ -35,11 +35,9 @@ const route = useRoute()
 
   .content {
     flex-grow: 1;
-    padding: 10px;
     box-sizing: border-box;
     height: 100vh;
     overflow: auto;
-    padding: 20px;
 
     ::-webkit-scrollbar {
       display: none;

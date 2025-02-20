@@ -2,7 +2,7 @@
  * @Author: yelan wzqf99@foxmail.com
  * @Date: 2025-02-19 10:51:36
  * @LastEditors: yelan wzqf99@foxmail.com
- * @LastEditTime: 2025-02-19 13:22:08
+ * @LastEditTime: 2025-02-20 19:40:41
  * @FilePath: \AI_vue3\vue-aigc\src\components\Sidebar.vue
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -25,7 +25,7 @@ import {
     SetUp,
     User
 } from '@element-plus/icons-vue'
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 const router = useRouter();
 const route = useRoute();
@@ -47,10 +47,19 @@ const pushtoview = (item, index) => {
     router.push(item.path)
 }
 
+onMounted(() => {
+    // 解决router.back()后选中项不对的问题
+    updateActiveIndex(route.path);
+});
+
+const updateActiveIndex = (path) => {
+    const index = sidebarData.findIndex(item => item.path === path);
+    currentIndex.value = index !== -1 ? index : 0;  // 找不到就默认选第一个
+};
+
 // 匹配当前路由 确保刷新选中的项
 watch(() => route.path, (newval) => {
-    const index = sidebarData.findIndex(item => item.path == newval)
-    currentIndex.value = index
+    updateActiveIndex(newval);
 })
 </script>
 
