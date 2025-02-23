@@ -15,3 +15,5 @@ const useLoginStore = defineStore("login", {
     },
   },
 });
+
+export default useLoginStore;
