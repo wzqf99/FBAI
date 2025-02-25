@@ -68,12 +68,38 @@
             </div>
 
             <!-- 编辑器容器 -->
-            <div v-show="editorVisible" class="editor-container">
+            <div v-show="editorVisible" class="editor-container" @click="trackClick">
+                <!-- 编辑器内容区父元素 -->
                 <EditorContent :editor="editor" class="tiptap-editor" />
-                <div class="bottombar">
-                    字数
+                <!-- 浮动图标 -->
+                <el-icon v-show="showMagicIcon" class="magic-icon"
+                    :style="{ left: iconLeft + 'px', top: iconTop + 'px' }">
+                    <MagicStick />
+                    <div class="magic-bar">
+                        <el-button @click="handleAction('polish')">润色</el-button>
+                        <el-button @click="handleAction('expand')">扩写</el-button>
+                        <el-button @click="handleAction('continue')">续写</el-button>
+                        <el-button @click="handleAction('shorten')">简写</el-button>
+                    </div>
+                </el-icon>
+                <!-- 大模型处理文本的弹窗 当调用重写那四个方法的时候将其展示位定位-->
+                <div class="preview-content-text">
+                    <div class="text-compare">
+                        {{ 新内容111 }}
+                    </div>
+                    <!-- loading preview-actions 二者展示其一 -->
+                    <div class="previewe-bottom">
+                        <div class="loading">loading...</div>
+                        <div class="preview-actions">
+                            <el-button type="success">
+                                替换原文</el-button>
+                            <el-button>弃用</el-button>
+                            <el-button>重新生成</el-button>
+                        </div>
+                    </div>
                 </div>
             </div>
+
         </div>
     </div>
 </template>
@@ -99,9 +125,10 @@ const paramsData = ref({
 const articleTypes = ref([])
 const languageStyles = ref([])
 
+/* 编辑器实例化配置 */
 const editor = useEditor({
     extensions: [StarterKit],
-    content: '<p>等待生成内容...</p>',
+    content: '<p>在左侧输入你的想法...</p>',
     autofocus: true,
     editable: true,
 })
@@ -143,13 +170,7 @@ const handlesumbit = () => {
     }
 }
 
-/* // 此时保存当前文章
-const handleSaveAndEdit = async () => {
-    // 将生成内容填充到编辑器
-    editor.value?.commands?.setContent(sseBuffer.value)
-    // 切换回编辑器
-    editorVisible.value = true
-} */
+// 保存生成的文章进入编辑模式
 const handleSaveAndEdit = async () => {
     try {
         // 1. 获取编辑器完整 HTML
@@ -188,7 +209,7 @@ const handleSaveAndEdit = async () => {
         const response = await createArticle(postData)
         console.log(response, "结果")
         // 6. 成功后操作
-        if (response.message==="文章创建成功") {
+        if (response.message === "文章创建成功") {
             // 这里用的还是蒙版的数据
             editor.value?.commands?.setContent(sseBuffer.value) // 保留完整内容
             editorVisible.value = true
@@ -202,16 +223,14 @@ const handleSaveAndEdit = async () => {
         ElMessage.error(`保存失败: ${error.message}`)
     }
 }
-
-
-
+// 放弃本次生成的文章
 const handleAbandon = () => {
     // 清空内容
     sseBuffer.value = ''
     // 切换回编辑器
     editorVisible.value = true
 }
-
+// 重新生成文章
 const handleRegenerate = () => {
     // 隐藏编辑器，显示预览
     editorVisible.value = false
@@ -219,6 +238,57 @@ const handleRegenerate = () => {
     handlesumbit()
 }
 
+// 控制小悬浮框的显示隐藏 
+const showMagicIcon = ref(false);
+// 控制小悬浮框的位置 
+const iconLeft = ref(0);
+const iconTop = ref(0);
+// 保存鼠标点击编辑器所在的段落或标题(p h1)的值
+const currentElement = ref(null)
+
+
+
+// 监听鼠标点击事件 通过时候点击到富文本编辑器中的h1或者p标签内容
+// 然后获取相对位置 同时计算出悬浮图标的位置 同时让其显示出来
+// 获取当前段落或者标题的内容用于重写等操作
+const trackClick = (e) => {
+    const target = e.target;
+    // 判断目标是否是段落或标题
+    if (target.closest('p, h1')) {
+        // 获取目标元素的定位信息
+        const rect = target.getBoundingClientRect();
+        const editorRect = document.querySelector('.tiptap-editor').getBoundingClientRect();
+
+        // 计算图标的位置（向左偏移24px）
+        iconLeft.value = rect.left - editorRect.left - 30;
+        iconTop.value = rect.top - editorRect.top - 10;
+        showMagicIcon.value = true;
+        currentElement.value = target
+        ElMessage.success('已获取当前段落/标题文本,可对其进行重写等操作')
+        console.log('已选中内容:', currentElement.value)
+    } else {
+        showMagicIcon.value = false;
+    }
+};
+
+// 处理重写润色拓展等操作
+const handleAction = (type) => {
+    // 收集参数 操作类型 待重写的内容 风格
+    const textParams = {
+        action: type,
+        text: currentElement.value,
+        style: paramsData.value.languageStyle
+    }
+    const queryString = new URLSearchParams(textParams.value).toString()
+    const url = `http://localhost:3000/api/article/rewriteText?${queryString}`
+    const eventSource = new EventSource(url)
+}
+
+
+
+
+
+// 获取文章类型和语言风格
 const articleStore = useArticleStore()
 onMounted(async () => {
     await articleStore.getArticleTypesAction()
@@ -226,6 +296,7 @@ onMounted(async () => {
     await articleStore.getArticleStylesAction()
     languageStyles.value = articleStore.articleStyles
 })
+
 
 const router = useRouter()
 const goBack = () => {
@@ -240,6 +311,7 @@ const goBack = () => {
     overflow: hidden;
 }
 
+/* 左侧 */
 .left-panel {
     width: 30%;
     height: 100%;
@@ -256,7 +328,7 @@ const goBack = () => {
     }
 }
 
-
+/* 右侧 */
 .right-panel {
     width: 70%;
     height: 100%;
@@ -264,104 +336,188 @@ const goBack = () => {
     flex-direction: column;
     align-items: center;
     box-shadow: 0 0 8px #ccc;
-}
 
-/* 预览容器 */
-.preview-container {
-    display: flex;
-    justify-content: center;
-    align-content: center;
-    flex-wrap: wrap;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-    background-color: #FFFFFF;
-}
-
-.preview-pane {
-    position: relative;
-    width: 80%;
-    max-height: 580px;
-    background-color: #FAFBFC;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    padding: 20px;
-    font-size: 20px;
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow: auto;
-    box-shadow: 0 0 8px 0 #ccc;
-
-    .preview-bar {
-        width: 400px;
-        height: 60px;
-        box-shadow: 0 0 8px 0 #ccc;
-    }
-}
-
-/* 生成中状态 */
-.generate-bar {
-    margin-top: 16px;
-    text-align: center;
-    padding: 10px 0;
-}
-
-/* 生成完成状态 */
-.save-bar {
-    margin-top: 16px;
-    text-align: right;
-    padding: 10px 0;
-}
-
-/* 编辑器容器 */
-.editor-container {
-    width: 100%;
-    height: 100%;
-    position: relative;
-
-    /* Tiptap 编辑器样式 内容*/
-    .tiptap-editor {
+    /* 生成文章预览容器 */
+    .preview-container {
         display: flex;
         justify-content: center;
-        align-items: center;
+        align-content: center;
+        flex-wrap: wrap;
+        flex-direction: column;
         width: 100%;
         height: 100%;
-        background-color: #fff;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        padding: 20px;
-        box-sizing: border-box;
+        background-color: #FFFFFF;
+
+        /* 预览页面 */
+        .preview-pane {
+            position: relative;
+            width: 80%;
+            max-height: 580px;
+            background-color: #FAFBFC;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 20px;
+            font-size: 20px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow: auto;
+            box-shadow: 0 0 8px 0 #ccc;
+
+            .preview-bar {
+                width: 400px;
+                height: 60px;
+                box-shadow: 0 0 8px 0 #ccc;
+            }
+        }
+
+        /* 生成中状态 */
+        .generate-bar {
+            margin-top: 16px;
+            text-align: center;
+            padding: 10px 0;
+        }
+
+        /* 生成完成状态 */
+        .save-bar {
+            margin-top: 16px;
+            text-align: right;
+            padding: 10px 0;
+        }
     }
 
-    /* 底部用于展示文章的字数等信息 */
-    .bottombar {
-        position: absolute;
-        bottom: 0;
-        left: 0;
+    /* 编辑器容器 */
+    .editor-container {
         width: 100%;
-        height: 30px;
-        background-color: pink;
+        height: 100%;
+        position: relative;
+
+        /* Tiptap 编辑器样式 内容区父元素 实例化时 内容区是其子元素*/
+        .tiptap-editor {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            background-color: #fff;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* 魔法变换父元素(点击内容定位时显现的浮动图标) */
+        .magic-icon {
+            position: absolute;
+            pointer-events: auto;
+            /* 防止图标阻挡文字选择 */
+            transition: opacity 0.2s;
+            font-size: 22px;
+            color: #666;
+            width: 60px;
+            height: 30px;
+
+
+            &:hover {
+                transform: scale(1.01);
+                color: var(--el-color-primary);
+                background-color: #DBEAFE;
+            }
+
+            /* 悬停在浮动图标的四种操作栏 */
+            .magic-bar {
+                position: absolute;
+                top: 30px;
+                display: none;
+
+                .el-button {
+                    width: 100%;
+                    margin: 0 !important;
+                    /* 覆盖默认margin */
+                }
+            }
+
+            &:hover .magic-bar {
+                display: flex;
+                flex-direction: column;
+            }
+        }
+
+        /* 重写等操作生成文本时的弹窗 */
+        .preview-content-text {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+
+            .text-compare {
+                width: 90%;
+                padding: 20px;
+                box-sizing: border-box;
+                min-height: 80px;
+                overflow-y: auto;
+                box-shadow: 0 0 8px 0 #ccc;
+            }
+        }
     }
 }
+
+
+
+
+/* 修改文章预览容器 */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 /* 深度穿透样式 */
 ::v-deep(.tiptap.ProseMirror) {
     min-height: 400px;
-    height: 86%;
+    height: 90%;
     width: 100%;
     overflow: auto;
     font-family: 'Georgia', serif;
     background-color: #fff;
-    box-shadow: 0 0 8px #ccc;
-    padding: 20px;
-    box-sizing: border-box;
+    padding: 10px;
+    /* box-shadow: 0 0 8px #ccc;
+    box-sizing: border-box; */
 }
 
 ::v-deep(.tiptap.ProseMirror p) {
     margin: 0.75rem 0;
     text-indent: 2em;
+    position: relative;
 }
 
 ::v-deep(.tiptap.ProseMirror h1) {
