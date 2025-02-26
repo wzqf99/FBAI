@@ -3,7 +3,7 @@
         <div class="left-panel">
             <div class="left-params">
                 <div class="page-header">
-                    <el-button type="text" @click="goBack">
+                    <el-button type="link" @click="goBack">
                         <el-icon>
                             <ArrowLeft />
                         </el-icon>
@@ -34,7 +34,7 @@
                     <el-form-item label="文章篇幅">
                         <el-input type="text" v-model="paramsData.max_token" />
                     </el-form-item>
-                    <el-button type="primary" @click="handlesumbit">
+                    <el-button type="primary" @click="handlesumbit" :disabled="cannotGenerate">
                         直接成文
                     </el-button>
                 </el-form>
@@ -72,7 +72,7 @@
                 <!-- 编辑器内容区父元素 -->
                 <EditorContent :editor="editor" class="tiptap-editor" />
                 <!-- 浮动图标 -->
-                <el-icon v-show="showMagicIcon" class="magic-icon"
+                <el-icon v-show="showMagicIcon & paramsData.languageStyle" class="magic-icon"
                     :style="{ left: iconLeft + 'px', top: iconTop + 'px' }">
                     <MagicStick />
                     <div class="magic-bar">
@@ -83,18 +83,18 @@
                     </div>
                 </el-icon>
                 <!-- 大模型处理文本的弹窗 当调用重写那四个方法的时候将其展示位定位-->
-                <div class="preview-content-text">
+                <div class="preview-content-text" v-if="seeNewContent">
                     <div class="text-compare">
-                        {{ 新内容111 }}
+                        {{ newgenContent }}
                     </div>
                     <!-- loading preview-actions 二者展示其一 -->
                     <div class="previewe-bottom">
-                        <div class="loading">loading...</div>
-                        <div class="preview-actions">
-                            <el-button type="success">
+                        <div class="loading" v-if="seeNewGenerating">loading...</div>
+                        <div class="preview-actions" v-else>
+                            <el-button @click="handleReplaceOriginal" type="success">
                                 替换原文</el-button>
-                            <el-button>弃用</el-button>
-                            <el-button>重新生成</el-button>
+                            <el-button @click="handleAbandonNewContent">弃用</el-button>
+                            <el-button @click="handleRegenerateNewContent">重新生成</el-button>
                         </div>
                     </div>
                 </div>
@@ -112,15 +112,18 @@ import useArticleStore from '@/store/modules/articles'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
-import { createArticle } from '@/services/modules/articles/index'
+import { createArticle, updateArticle } from '@/services/modules/articles/index'
 
-const value1 = ref(false)
 const paramsData = ref({
     contentTemplate: '',
     max_token: 800,
     articleType: '',
     languageStyle: '',
 })
+const articleData = ref({})
+const value1 = ref(false)
+const cannotGenerate = ref(false)
+
 
 const articleTypes = ref([])
 const languageStyles = ref([])
@@ -131,42 +134,48 @@ const editor = useEditor({
     content: '<p>在左侧输入你的想法...</p>',
     autofocus: true,
     editable: true,
+    onUpdate: ({ editor }) => {
+        // 监听内容变化
+        const html = editor.getHTML()
+        const json = editor.getJSON()
+        console.log('内容变化:', { html, json })
+    },
 })
+
 
 const sseBuffer = ref('')
 const sseGenerating = ref(false)
 const editorVisible = ref(true) // 默认显示编辑器
 const sseFinished = ref(false)
-
-// 编辑器
+// 提交参数并生成文章
 const handlesumbit = () => {
+    // 控制按钮为不可用
+    cannotGenerate.value = true
     // 隐藏编辑器，显示预览
     editorVisible.value = false
     sseGenerating.value = true
-
     // 重置数据
     sseBuffer.value = ''
     sseFinished.value = false
-
     const queryString = new URLSearchParams(paramsData.value).toString()
     const url = `http://localhost:3000/api/article/generateArticleDraft?${queryString}`
     const eventSource = new EventSource(url)
-
     eventSource.onmessage = (event) => {
         if (event.data === '[DONE]') {
             sseFinished.value = true
             eventSource.close()
             sseGenerating.value = false
+            cannotGenerate.value = false
             return
         }
         sseBuffer.value += event.data
     }
-
     eventSource.onerror = (error) => {
         console.error('EventSource 错误:', error)
         eventSource.close()
         sseFinished.value = true
         sseGenerating.value = false
+        cannotGenerate.value = false
     }
 }
 
@@ -174,7 +183,6 @@ const handlesumbit = () => {
 const handleSaveAndEdit = async () => {
     try {
         // 1. 获取编辑器完整 HTML
-        /*  const fullHtml = editor.value?.getHTML() || '' */
         const fullHtml = sseBuffer.value
 
         // 2. 解析并拆分标题与内容
@@ -207,7 +215,8 @@ const handleSaveAndEdit = async () => {
 
         // 5. 调用保存接口
         const response = await createArticle(postData)
-        console.log(response, "结果")
+        articleData.value = response.data
+        console.log(articleData.value, "结果")
         // 6. 成功后操作
         if (response.message === "文章创建成功") {
             // 这里用的还是蒙版的数据
@@ -245,7 +254,14 @@ const iconLeft = ref(0);
 const iconTop = ref(0);
 // 保存鼠标点击编辑器所在的段落或标题(p h1)的值
 const currentElement = ref(null)
-
+// 新生成的内容
+const newgenContent = ref('')
+// 显示弹窗 生成ing
+const seeNewContent = ref(false)
+// 显示生成中 默认显示
+const seeNewGenerating = ref(true)
+// 新增状态保存操作类型
+const currentActionType = ref('');
 
 
 // 监听鼠标点击事件 通过时候点击到富文本编辑器中的h1或者p标签内容
@@ -263,9 +279,10 @@ const trackClick = (e) => {
         iconLeft.value = rect.left - editorRect.left - 30;
         iconTop.value = rect.top - editorRect.top - 10;
         showMagicIcon.value = true;
+        console.log('已选中内容:', currentElement.value)
+        if (currentElement.value == target) return
         currentElement.value = target
         ElMessage.success('已获取当前段落/标题文本,可对其进行重写等操作')
-        console.log('已选中内容:', currentElement.value)
     } else {
         showMagicIcon.value = false;
     }
@@ -273,19 +290,105 @@ const trackClick = (e) => {
 
 // 处理重写润色拓展等操作
 const handleAction = (type) => {
+    currentActionType.value = type
     // 收集参数 操作类型 待重写的内容 风格
     const textParams = {
         action: type,
-        text: currentElement.value,
+        text: currentElement.value.innerText,
         style: paramsData.value.languageStyle
     }
-    const queryString = new URLSearchParams(textParams.value).toString()
+    console.log(textParams)
+    seeNewContent.value = true
+    cannotGenerate.value = true
+    const queryString = new URLSearchParams(textParams).toString()
     const url = `http://localhost:3000/api/article/rewriteText?${queryString}`
     const eventSource = new EventSource(url)
+
+    eventSource.onmessage = (event) => {
+        if (event.data === '[DONE]') {
+            eventSource.close()
+            seeNewGenerating.value = false
+            cannotGenerate.value = false
+            return
+        }
+        newgenContent.value += event.data
+    }
+    eventSource.onerror = (error) => {
+        console.error('EventSource 错误:', error)
+        eventSource.close()
+        seeNewGenerating.value = false
+        cannotGenerate.value = false
+    }
 }
 
+// 替换文本 清空新生成的内容 隐藏弹窗 调整正在生成元素的布尔值
+const handleReplaceOriginal = () => {
+    if (!currentElement.value) {
+        ElMessage.warning('未找到要替换的段落');
+        return;
+    }
+    currentElement.value.innerText = newgenContent.value
+    seeNewContent.value = false;
+    newgenContent.value = '';
+    seeNewGenerating.value = true
+    ElMessage.success('内容替换成功');
+    updateArticleData()
+};
 
+// 放弃新生成的文本
+const handleAbandonNewContent = () => {
+    seeNewContent.value = false;
+    newgenContent.value = '';
+    seeNewGenerating.value = true;
+    ElMessage.info('已弃用新生成的内容');
+};
 
+// 重新生成文本
+const handleRegenerateNewContent = () => {
+    newgenContent.value -= ''
+    handleAction(currentActionType.value)
+}
+
+// 更新文章
+const updateArticleData = async () => {
+    try {
+        if (!editor.value) {
+            throw new Error('编辑器实例未初始化')
+        }
+
+        // 获取完整 HTML
+        const fullHtml = editor.value.getHTML()
+
+        // 解析内容
+        const parser = new DOMParser()
+        const doc = parser.parseFromString(fullHtml, 'text/html')
+        const titleElement = doc.querySelector('h1')
+        const title = titleElement?.outerHTML || '未命名文章'
+        if (titleElement) titleElement.remove()
+        const content = doc.body.innerHTML
+
+        // 构建更新数据
+        const updateData = {
+            article_type_id: articleData.value.article_type_id,
+            language_style_id: articleData.value.language_style_id,
+            content_template: {
+                contentId: articleData.value.content_template_id,
+                contentName: paramsData.value.contentTemplate
+            },
+            title: title,
+            content: content,
+            word_count: parseInt(paramsData.value.max_token) || 0,
+        }
+
+        // 调用更新接口（假设 articleData.value.id 存在）
+        const result = await updateArticle(articleData.value.id, updateData)
+        console.log('更新结果:', result)
+        ElMessage.success('文章已保存')
+    } catch (error) {
+        console.error('更新失败:', error)
+        ElMessage.error(`保存失败: ${error.message}`)
+    }
+}
 
 
 // 获取文章类型和语言风格
@@ -296,7 +399,6 @@ onMounted(async () => {
     await articleStore.getArticleStylesAction()
     languageStyles.value = articleStore.articleStyles
 })
-
 
 const router = useRouter()
 const goBack = () => {
@@ -451,23 +553,19 @@ const goBack = () => {
             bottom: 0;
             width: 100%;
 
+
             .text-compare {
                 width: 90%;
                 padding: 20px;
+                min-height: 120px;
                 box-sizing: border-box;
-                min-height: 80px;
                 overflow-y: auto;
                 box-shadow: 0 0 8px 0 #ccc;
+                border-radius: 6px;
             }
         }
     }
 }
-
-
-
-
-/* 修改文章预览容器 */
-
 
 
 

@@ -43,3 +43,8 @@ export function generateArticle(query) {
 export function createArticle(data) {
   return MYRequest.post({ url: "/article/createArticle", data });
 }
+
+// 更新文章
+export function updateArticle(id, data) {
+  return MYRequest.put({ url: `/article/${id}`, data });
+}
