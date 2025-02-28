@@ -72,7 +72,7 @@
                 <!-- 编辑器内容区父元素 -->
                 <EditorContent :editor="editor" class="tiptap-editor" />
                 <!-- 浮动图标 -->
-                <el-icon v-show="showMagicIcon & paramsData.languageStyle" class="magic-icon"
+                <el-icon v-show="showMagicIcon" class="magic-icon"
                     :style="{ left: iconLeft + 'px', top: iconTop + 'px' }">
                     <MagicStick />
                     <div class="magic-bar">

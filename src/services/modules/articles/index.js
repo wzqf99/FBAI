@@ -2,7 +2,7 @@
  * @Author: yelan wzqf99@foxmail.com
  * @Date: 2025-02-21 15:12:36
  * @LastEditors: yelan wzqf99@foxmail.com
- * @LastEditTime: 2025-02-24 21:50:10
+ * @LastEditTime: 2025-02-28 14:55:39
  * @FilePath: \AI_vue3\vue-aigc\src\services\modules\articles\index.js
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -47,4 +47,22 @@ export function createArticle(data) {
 // 更新文章
 export function updateArticle(id, data) {
   return MYRequest.put({ url: `/article/${id}`, data });
+}
+
+// 获取文章列表 查询 searchParams
+/* - `title`: 文章标题，支持模糊搜索(可选)
+- `article_type`: 文章类型(可选)
+- `status`: 文章状态(可选)
+- `start_date`: 开始日期(可选)
+- `end_date`: 结束日期(可选) */
+export function getArticleList(user_id, page, pageSize, searchParams) {
+  return MYRequest.get({
+    url: "/article/articleList",
+    params: {
+      user_id,
+      page,
+      pageSize,
+      ...searchParams,
+    },
+  });
 }
