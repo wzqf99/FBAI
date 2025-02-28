@@ -38,16 +38,18 @@
                         <el-form-item>
                             <div class="demo-datetime-picker">
                                 <div class="block">
-                                    <el-date-picker v-model="value2" type="datetimerange" start-placeholder="Start date"
-                                        end-placeholder="End date" format="YYYY-MM-DD HH:mm:ss"
-                                        date-format="YYYY/MM/DD ddd" time-format="A hh:mm:ss" />
+                                    <el-date-picker v-model="DateTime" type="datetimerange"
+                                        start-placeholder="Start date" end-placeholder="End date"
+                                        format="YYYY-MM-DD HH:mm:ss" value-format="YYYY-MM-DD HH:mm:ss"
+                                        date-format="YYYY/MM/DD ddd" time-format="A hh:mm:ss" @change="handleDateChange"
+                                        handleDateChange />
                                 </div>
                             </div>
                         </el-form-item>
                     </el-col>
                     <!-- 搜索按钮 点击提交 联合参数 -->
                     <el-col :span="12">
-                        <el-button type="primary" style="width:88px;height:36px">搜索</el-button>
+                        <el-button @click="handleSearch" type="primary" style="width:88px;height:36px">搜索</el-button>
                     </el-col>
                 </el-row>
             </el-form>
@@ -68,7 +70,11 @@
                         </el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column prop="created_at" label="更新时间" width="180" align="center" />
+                <el-table-column prop="updated_at" label="更新时间" width="180" align="center">
+                    <template #default="{ row }">
+                        {{ row.updated_at ? formatDateTime(row.updated_at) : formatDateTime(row.created_at) }}
+                    </template>
+                </el-table-column>
                 <el-table-column label="操作" align="center">
                     <template #default="{ row }">
                         <el-button type="primary" :icon="Edit">
@@ -100,6 +106,7 @@ import { Edit, Delete, Download } from '@element-plus/icons-vue';
 import { computed, onMounted, reactive, ref } from 'vue'
 import useArticleStore from '@/store/modules/articles'
 import { storeToRefs } from 'pinia'
+import { formatDateTime } from '@/utils/dateTime';
 const statusMap = {
     draft: "草稿",
     exported: "已导出"
@@ -122,11 +129,37 @@ const params = ref({
     start_date: '',
     end_date: '',
 })
+const DateTime = ref([]);
+const isSearch = ref(false)
 
+const handleDateChange = () => {
+    console.log(DateTime.value, "当前获取的时间")
+    if (!DateTime.value || DateTime.value.length === 0) {
+        params.value.start_date = '';
+        params.value.end_date = '';
+    } else {
+        params.value.start_date = DateTime.value[0];
+        params.value.end_date = DateTime.value[1];
+    }
+}
+
+const handleSearch = () => {
+    isSearch.value = true
+    if (isSearch.value) {
+        loadArticleData();
+    } else {
+        // 如果没有搜索，分页时不携带 params
+        loadArticleDataWithoutParams();
+    }
+}
 
 const handleCurrentChange = (newPage) => {
     page.value = newPage
-    loadArticleData()
+    if (isSearch.value) {
+        loadArticleData();
+    } else {
+        loadArticleDataWithoutParams();
+    }
 }
 
 const handleSizeChange = (newSize) => {
@@ -138,6 +171,18 @@ const loadArticleData = async () => {
     await articleStore.getArticleListAction(user_id, page.value, pageSize.value, params.value)
 }
 
+const loadArticleDataWithoutParams = async () => {
+    // 如果没有进行搜索，分页时清空 params，只带分页参数
+    const emptyParams = {
+        title: '',
+        article_type: '',
+        status: '',
+        start_date: '',
+        end_date: ''
+    };
+    await articleStore.getArticleListAction(user_id, page.value, pageSize.value, emptyParams);
+}
+
 const loadTypes = async () => {
     await articleStore.getArticleTypesAction()
 }
@@ -145,7 +190,6 @@ onMounted(() => {
     loadArticleData()
     loadTypes()
 })
-
 </script>
 
 <style lang="less" scoped>
