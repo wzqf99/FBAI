@@ -80,7 +80,7 @@
                         <el-button type="primary" :icon="Edit">
                             编辑
                         </el-button>
-                        <el-button type="danger" :icon="Delete">
+                        <el-button type="danger" :icon="Delete" @click="handleDelte(row)">
                             删除
                         </el-button>
                         <el-button type="success" :icon="Download">
@@ -107,6 +107,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import useArticleStore from '@/store/modules/articles'
 import { storeToRefs } from 'pinia'
 import { formatDateTime } from '@/utils/dateTime';
+import { ElMessage } from 'element-plus';
 const statusMap = {
     draft: "草稿",
     exported: "已导出"
@@ -118,9 +119,7 @@ const user_id = 3
 const page = ref(1);
 const pageSize = ref(8)
 
-
-console.log(articleTypes, "11111");
-console.log(articleList, "111")
+console.log(articleTypes, articleList, "11");
 
 const params = ref({
     title: '',
@@ -131,6 +130,15 @@ const params = ref({
 })
 const DateTime = ref([]);
 const isSearch = ref(false)
+
+const handleDelte = async (row) => {
+    const id = await articleStore.deleteArticleAction(row.id)
+    ElMessage({
+        message: `成功删除id为${id}的文章`,
+        type: 'success',
+    })
+    loadArticleData()
+}
 
 const handleDateChange = () => {
     console.log(DateTime.value, "当前获取的时间")
