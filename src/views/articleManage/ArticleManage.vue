@@ -77,13 +77,13 @@
                 </el-table-column>
                 <el-table-column label="操作" align="center">
                     <template #default="{ row }">
-                        <el-button type="primary" :icon="Edit">
+                        <el-button type="primary" :icon="Edit" @click="handleEdit(row)">
                             编辑
                         </el-button>
                         <el-button type="danger" :icon="Delete" @click="handleDelte(row)">
                             删除
                         </el-button>
-                        <el-button type="success" :icon="Download">
+                        <el-button type="success" :icon="Download" @click="handleExport(row)">
                             导出
                         </el-button>
                     </template>
@@ -108,6 +108,10 @@ import useArticleStore from '@/store/modules/articles'
 import { storeToRefs } from 'pinia'
 import { formatDateTime } from '@/utils/dateTime';
 import { ElMessage } from 'element-plus';
+import { useRouter } from 'vue-router';
+import { getArticleDetails } from '@/services/modules/articles';
+
+const router = useRouter()
 const statusMap = {
     draft: "草稿",
     exported: "已导出"
@@ -130,6 +134,26 @@ const params = ref({
 })
 const DateTime = ref([]);
 const isSearch = ref(false)
+
+const handleEdit = (row) => {
+    router.push({
+        path: 'articleCreation',
+        query: { id: row.id }
+    })
+}
+
+const handleExport = async (row) => {
+    const result = await getArticleDetails(row.id)
+    const article = result.data
+    const content = `# ${article.title}\n\n${article.content}`;
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob); // 创建 Blob URL
+    link.download = `${article.title}.txt`;
+    link.click(); // 触发下载
+    URL.revokeObjectURL(link.href);
+}
 
 const handleDelte = async (row) => {
     const id = await articleStore.deleteArticleAction(row.id)

@@ -107,12 +107,12 @@
 <script setup>
 import { ElMessage } from 'element-plus'
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import useArticleStore from '@/store/modules/articles'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
-import { createArticle, updateArticle } from '@/services/modules/articles/index'
+import { createArticle, getArticleDetails, updateArticle } from '@/services/modules/articles/index'
 
 const paramsData = ref({
     contentTemplate: '',
@@ -332,6 +332,7 @@ const handleReplaceOriginal = () => {
     newgenContent.value = '';
     seeNewGenerating.value = true
     ElMessage.success('内容替换成功');
+    // 更新文章
     updateArticleData()
 };
 
@@ -391,6 +392,7 @@ const updateArticleData = async () => {
 }
 
 
+const route = useRoute()
 // 获取文章类型和语言风格
 const articleStore = useArticleStore()
 onMounted(async () => {
@@ -398,6 +400,17 @@ onMounted(async () => {
     articleTypes.value = articleStore.articleTypes
     await articleStore.getArticleStylesAction()
     languageStyles.value = articleStore.articleStyles
+    if (route.query.id) {
+        const { data } = await getArticleDetails(route.query.id)
+        // 直接填充表单
+        console.log(data, '文章列表跳转获取文章详情')
+        const articleBuffer = `${data.title}${data.content}`
+        editor.value?.commands?.setContent(articleBuffer)
+        paramsData.value.contentTemplate = data.contentTemplate.content
+        paramsData.value.max_token = data.wordCount
+        paramsData.value.articleType = data.articleType.name
+        paramsData.value.languageStyle = data.languageStyle.name
+    }
 })
 
 const router = useRouter()
@@ -566,36 +579,6 @@ const goBack = () => {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
