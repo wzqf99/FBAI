@@ -2,7 +2,7 @@
  * @Author: yelan wzqf99@foxmail.com
  * @Date: 2025-02-18 16:22:19
  * @LastEditors: yelan wzqf99@foxmail.com
- * @LastEditTime: 2025-02-19 20:09:22
+ * @LastEditTime: 2025-03-06 16:43:04
  * @FilePath: \AI_vue3\vue-aigc\src\views\home\Home.vue
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -12,7 +12,7 @@
             <span ref="text" class="msg"></span>
             <!-- 引导模块 -->
             <div class="guide">
-                <div class="guide-item">
+                <div class="guide-item" @click="pushtoCreation">
                     <div class="top">
                         <el-icon :size="40" color="#4D6BFE">
                             <DocumentAdd />
@@ -149,6 +149,7 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
+import { useRouter } from 'vue-router';
 import TypeIt from 'typeit' // 引入typeit 打字机效果    
 const text = ref(null)
 onMounted(() => {
@@ -162,6 +163,11 @@ onMounted(() => {
         loop: false,//是否循环
     }).go()
 })
+
+const router = useRouter();
+const pushtoCreation = () => {
+    router.push('/articleCreation')
+}
 </script>
 
 <style lang="less" scoped>
