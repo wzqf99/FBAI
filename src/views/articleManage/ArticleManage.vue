@@ -1,5 +1,5 @@
 <template>
-    <div class="ArticleManage">、
+    <div class="ArticleManage">
         <!-- 搜索框部分 -->
         <div class="searchpart">
             <el-form :model="params">

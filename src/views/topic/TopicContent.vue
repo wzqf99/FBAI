@@ -2,7 +2,7 @@
  * @Author: yelan wzqf99@foxmail.com
  * @Date: 2025-02-18 16:28:16
  * @LastEditors: yelan wzqf99@foxmail.com
- * @LastEditTime: 2025-03-07 00:32:54
+ * @LastEditTime: 2025-03-14 21:02:54
  * @FilePath: \AI_vue3\vue-aigc\src\views\topic\TopicContent.vue
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -60,7 +60,7 @@ const handleCheck = (index) => {
         width: 100%;
         padding: 10px 30px;
         box-sizing: border-box;
-        background-color: pink;
+        /* background-color: pink; */
         height: calc(100vh - 80px - 40px);
     }
 }
