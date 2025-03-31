@@ -2,7 +2,7 @@
  * @Author: yelan wzqf99@foxmail.com
  * @Date: 2025-03-07 00:07:00
  * @LastEditors: yelan wzqf99@foxmail.com
- * @LastEditTime: 2025-03-14 15:26:00
+ * @LastEditTime: 2025-03-29 11:16:58
  * @FilePath: \AI_vue3\vue-aigc\src\views\topic\TabsSlider.vue
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -10,8 +10,8 @@
     <div>
         <div class="tabs">
             <div :class="{ active: index === currentIndex }" class=" tab" @click="handleCheck(index)"
-                v-for="(item, index) in tabs" :key="item.id">{{
-                    item.name }}
+                v-for="(item, index) in tabs" :key="item.id">
+                {{ item.name }}
             </div>
             <transition>
                 <div :style="`top:1px; left:${currentIndex * (400 / 3)}px;`" class="slider"></div>
