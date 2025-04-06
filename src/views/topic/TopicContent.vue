@@ -13,7 +13,7 @@
                 <TabsSlider @updateIdx="handleCheck" :tabs="tabs" :currentIndex="currentIndex"></TabsSlider>
             </div>
             <div class="maincontent">
-                <TopicGenerate v-show="currentIndex === 0"></TopicGenerate>
+                <TopicGenerate v-show="currentIndex === 0" ref="topicGenerateRef"></TopicGenerate>
                 <InspirationLibrary v-show="currentIndex === 1" @updateIndex="cpncheck"></InspirationLibrary>
                 <TopicCollection v-show="currentIndex === 2"></TopicCollection>
             </div>
@@ -37,9 +37,15 @@ const currentIndex = ref(0)
 const handleCheck = (index) => {
     currentIndex.value = index
 }
+const topicGenerateRef = ref(null);
+// 从热搜这个组件传过来的值  接受热搜组件的传值 传入
 const cpncheck = (index, title, desc) => {
     currentIndex.value = index
     console.log(index, title, desc, "子组件传过来的值")
+    // 调用话题生成这个子组件的方法 更新话题参数
+    if (topicGenerateRef.value) {
+    topicGenerateRef.value.updateTopicData(index,title, desc);
+  }
 }
 
 </script>

@@ -10,10 +10,12 @@
                         <HelpFilled color="#4d6bfe" />
                     </el-icon>
                     <div class="hotselect">
-                        <div>热点融合</div>
-                        <el-tag>
-                            {{ parapmsSelect.hotmessage }} 江苏生育津贴不用准备
-                        </el-tag>
+                        <div style="font-size: 14px">热点融合</div>
+                        <transition>
+                            <div class="hotTitle">
+                                {{ parapmsSelect.title }}
+                            </div>
+                        </transition>
                     </div>
                     <el-icon>
                         <ArrowRight />
@@ -49,13 +51,13 @@
                         </div>
                         <!-- 操作部分 -->
                         <div class="what-todo">
-                            <button>
+                            <button @click="deleteHandle(item, index)">
                                 <i class="el-icon-delete"></i> 删除
                             </button>
-                            <button>
+                            <button @click="starHandle(item, index)">
                                 <i class="el-icon-star-off"></i> 收藏
                             </button>
-                            <button>
+                            <button @click="wirteArticle(item, index)">
                                 <i class="el-icon-edit-outline"></i> 写成文章
                             </button>
                         </div>
@@ -64,21 +66,50 @@
             </div>
         </div>
         <!-- 热搜数据弹窗 -->
-
+        <!-- 热搜数据弹窗 -->
+        <div class="hotModal" v-if="showHotModal">
+            <div class="close-btn" @click="showHotModal = false">
+                <el-icon>
+                    <Close />
+                </el-icon>
+            </div>
+            <InspirationLibrary :isnewLayout="true" @updateIndex="cpncheck"></InspirationLibrary>
+        </div>
     </div>
 </template>
 
 <script setup>
+import InspirationLibrary from './InspirationLibrary.vue';
 import { fetchTopicJson } from '@/services/modules/topics';
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 const formData = ref({
     userInput: ''
 })
+const router = useRouter()
 const isGenerate = ref(false)
-const isShowInspiration = ref(false)
+const showHotModal = ref(false);
+
+// 修改sethotMessages函数
+function sethotMessages() {
+    showHotModal.value = true;
+}
+
+// 在cpncheck函数中应该关闭模态框
+function cpncheck(index, title, desc) {
+    // 您现有的代码...
+    showHotModal.value = false;
+    parapmsSelect.value.title = title;
+    if (desc != '') {
+        parapmsSelect.value.desc = desc
+    } else {
+        parapmsSelect.value.desc = ''
+    }
+}
 
 
-/* let list = ref([])
+let list = ref([])
+
 const obj = {
     "jsonObject": [
         {
@@ -100,7 +131,7 @@ const obj = {
 }
 for (let i = 0; i < 4; i++) {
     list.value.push(obj.jsonObject[0])
-} */
+}
 
 // 话题生成参数
 const parapmsSelect = ref({
@@ -121,23 +152,27 @@ const loadData = async () => {
     }
     isGenerate.value = false
 }
+// 更新话题参数 由父组件调用
+const updateTopicData = (index, title, desc) => {
+    parapmsSelect.value.title = title || parapmsSelect.value.title;
+    parapmsSelect.value.desc = desc || parapmsSelect.value.desc;
+};
 
-const sethotMessages = () => {
-    const item = {
-        title: "县城贵妇最爱的“秋裤”股价崩盘",
-        desc: "近日，县城贵妇最爱的“秋裤”品牌Lululemon遇到了大考验，交出了一份不错的试卷，股价却崩盘了，一天蒸发400亿元。",
-    }
-    parapmsSelect.value.title = item.title
-    if (item.desc != '') {
-        parapmsSelect.value.desc = item.desc
-    } else {
-        parapmsSelect.value.desc = ''
-    }
-    loadData()
+// 删除话题
+function deleteHandle(item, index) {
+    console.log(item, index, "当前元素")
+    list.value.splice(index, 1)
+}
+function starHandle(item, index) {
+
+}
+function wirteArticle(item, index) {
+    router.push('/articleCreation')
 }
 
+
 defineExpose({
-    loadData
+    updateTopicData
 })
 </script>
 <style lang="less" scoped>
@@ -145,6 +180,7 @@ defineExpose({
     max-width: calc(100vw - 310px); // 减去sidebar250 以及父元素的60的padding
     height: 100%;
     display: flex;
+    position: relative;
 }
 
 //左侧 话题参数部分
@@ -170,16 +206,61 @@ defineExpose({
 
         .hotFusion {
             height: 60px;
-            width: 90%;
+            width: 230px;
+            margin: 0 10px;
+            /* 固定宽度 */
             display: flex;
-            justify-content: space-around;
+            justify-content: space-between;
+            /* 改为space-between以便更好地控制间距 */
             align-items: center;
             cursor: pointer;
             background-color: #F9FAFE;
             box-shadow: 0 0 4px #ccc;
             border-radius: 5px;
+            overflow: hidden;
+            padding: 0 10px;
+            /* 添加内边距保持内容不贴边 */
+            box-sizing: border-box;
+        }
+
+        .hotTitle {
+            max-height: 42px;
+            max-width: 330px;
+            /* 固定最大宽度 */
+            padding: 4px 8px;
+            font-size: 10px;
+            color: #4d6bfe;
+            background-color: #DBEAFE;
+            border-radius: 4px;
+
+            /* 多行文本溢出处理 */
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+
+            line-height: 1.4;
+            box-sizing: border-box;
+            word-break: break-word;
+
+            /* 添加渐变淡出效果 */
+            position: relative;
+        }
+
+        /* 可选：添加渐变淡出效果，使长文本看起来更自然 */
+        .hotTitle::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: 30px;
+            background: linear-gradient(to right, rgba(219, 234, 254, 0), #DBEAFE);
+            pointer-events: none;
         }
     }
+
+
 }
 
 // 右侧 话题列表部分
@@ -330,5 +411,65 @@ defineExpose({
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     grid-row: span auto;
     /* 让 item 根据内容自动跨越多个 grid 行 */
+}
+
+
+.hotModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9;
+    display: flex;
+}
+
+/* 左侧半透明遮罩 */
+.hotModal::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 40vw;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.4);
+    /* 半透明灰色 */
+    backdrop-filter: blur(3px);
+    /* 轻微模糊效果，提升视觉效果 */
+}
+
+/* 右侧热搜内容 */
+.hotModal .inspiration {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 60vw;
+    height: 100vh;
+    background-color: white;
+    overflow-y: auto;
+    box-shadow: -4px 0 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+/* 添加关闭按钮 */
+.hotModal .close-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    z-index: 10;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.hotModal .close-btn:hover {
+    background-color: #e0e0e0;
 }
 </style>
