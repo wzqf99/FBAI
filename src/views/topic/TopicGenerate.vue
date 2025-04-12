@@ -54,8 +54,10 @@
                             <button @click="deleteHandle(item, index)">
                                 <i class="el-icon-delete"></i> 删除
                             </button>
-                            <button @click="starHandle(item, index)">
-                                <i class="el-icon-star-off"></i> 收藏
+                            <button @click="starHandle(item, index)" :class="{ 'collected': item.isCollected }"
+                                :disabled="item.isCollected">
+                                <i :class="item.isCollected ? 'el-icon-star-on' : 'el-icon-star-off'"></i>
+                                {{ item.isCollected ? '已收藏' : '收藏' }}
                             </button>
                             <button @click="wirteArticle(item, index)">
                                 <i class="el-icon-edit-outline"></i> 写成文章
@@ -80,7 +82,8 @@
 
 <script setup>
 import InspirationLibrary from './InspirationLibrary.vue';
-import { fetchTopicJson } from '@/services/modules/topics';
+import { fetchTopicJson, collectTopic } from '@/services/modules/topics';
+import { ElMessage } from 'element-plus';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 const formData = ref({
@@ -130,25 +133,26 @@ const obj = {
     ]
 }
 for (let i = 0; i < 4; i++) {
-    list.value.push(obj.jsonObject[0])
+    list.value.push({ ...obj.jsonObject[0], isCollected: false });
 }
-
 // 话题生成参数
 const parapmsSelect = ref({
     title: "华为阔折叠屏手机开售10分钟缺货",
-    desc: "30日10时8分，华为阔折叠屏手机PuraX正式开售，售价7499元起。截至10时18分，华为商城显示所有版本均暂时缺货。",
+    desc: "",
     input: formData.userInput
 })
-
 // 一次生成四条数据 生成话题
 const loadData = async () => {
     isGenerate.value = true
     const promiseArr = Array.from({ length: 4 }, () => fetchTopicJson(parapmsSelect.value))
     const result = await Promise.all(promiseArr)
     console.log(result, "返回的数据")
-    /* list.value.push(result.data[0]) */
+
     for (let i = 0; i < result.length; i++) {
-        list.value.push(result[i].data[0])
+        // 为每个话题添加isCollected字段
+        const topic = result[i].data[0];
+        topic.isCollected = false; // 初始状态为未收藏
+        list.value.push(topic);
     }
     isGenerate.value = false
 }
@@ -157,17 +161,81 @@ const updateTopicData = (index, title, desc) => {
     parapmsSelect.value.title = title || parapmsSelect.value.title;
     parapmsSelect.value.desc = desc || parapmsSelect.value.desc;
 };
-
 // 删除话题
 function deleteHandle(item, index) {
     console.log(item, index, "当前元素")
     list.value.splice(index, 1)
 }
-function starHandle(item, index) {
+// 收藏话题
+async function starHandle(item, index) {
+    // 如果已经收藏，就不做任何操作
+    if (item.isCollected) {
+        return;
+    }
 
+    try {
+        const userId = 3; // 固定用户ID
+        const data = {
+            topicId: item.id || -1,
+            title: item.title,
+            content_template: {
+                id: item.content_template.id || -1,
+                content: item.content_template.content
+            },
+            style: {
+                id: item.style.id,
+                name: item.style.name
+            },
+            type: {
+                id: item.type.id,
+                name: item.type.name
+            }
+        };
+
+        const response = await collectTopic(userId, data);
+        console.log(response, "返回的数据")
+        if (response && response.success) {
+            // 更新话题ID和内容模板ID
+            if (response.topic) {
+                item.id = response.topic.topicId;
+                item.content_template.id = response.topic.content_template.id;
+            }
+
+            // 标记为已收藏
+            item.isCollected = true;
+
+            // 根据不同情况显示消息
+            if (response.alreadyCollected) {
+                ElMessage.info('该话题已在收藏中');
+            } else {
+                ElMessage.success('收藏成功');
+            }
+        } else {
+            ElMessage.error(response.data?.message || '收藏失败');
+        }
+    } catch (error) {
+        console.error('收藏失败:', error);
+        ElMessage.error('收藏失败，请稍后重试');
+    }
 }
+
+
 function wirteArticle(item, index) {
-    router.push('/articleCreation')
+    // 提取文章创作所需的参数
+    const articleParams = {
+        contentTemplate: item.content_template.content,
+        articleType: item.type.name,
+        languageStyle: item.style.name,
+        // 可以根据需要添加其他默认参数
+        max_token: 800 // 默认字数限制，可根据需要调整
+    };
+    console.log(articleParams, "文章创作参数")
+
+    // 将参数存储到localStorage
+    localStorage.setItem('articleCreationParams', JSON.stringify(articleParams));
+
+    // 导航到文章创作页
+    router.push('/articleCreation');
 }
 
 
@@ -259,8 +327,6 @@ defineExpose({
             pointer-events: none;
         }
     }
-
-
 }
 
 // 右侧 话题列表部分
@@ -471,5 +537,16 @@ defineExpose({
 
 .hotModal .close-btn:hover {
     background-color: #e0e0e0;
+}
+
+.what-todo button.collected {
+    background-color: #909399 !important;
+    /* 使用灰色表示已收藏且不可点击 */
+    opacity: 0.8;
+    cursor: not-allowed;
+}
+
+.what-todo button:disabled {
+    cursor: not-allowed;
 }
 </style>

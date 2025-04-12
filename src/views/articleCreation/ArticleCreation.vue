@@ -84,17 +84,31 @@
                 </el-icon>
                 <!-- 大模型处理文本的弹窗 当调用重写那四个方法的时候将其展示位定位-->
                 <div class="preview-content-text" v-if="seeNewContent">
-                    <div class="text-compare">
-                        {{ newgenContent }}
+                    <div class="text-header">
+                        <h3>内容对比</h3>
+                        <el-icon class="close-icon" @click="handleAbandonNewContent">
+                            <Close />
+                        </el-icon>
                     </div>
-                    <!-- loading preview-actions 二者展示其一 -->
+                    <div class="text-compare">
+                        <div class="original-text">
+                            <div class="text-label">原文</div>
+                            <div class="text-content">{{ currentElementText }}</div>
+                        </div>
+                        <div class="new-text">
+                            <div class="text-label">新内容</div>
+                            <div class="text-content" :class="{ 'generating': seeNewGenerating }">
+                                {{ newgenContent || '生成中...' }}
+                            </div>
+                        </div>
+                    </div>
                     <div class="previewe-bottom">
-                        <div class="loading" v-if="seeNewGenerating">loading...</div>
+                        <div class="loading" v-if="seeNewGenerating">内容生成中</div>
                         <div class="preview-actions" v-else>
-                            <el-button @click="handleReplaceOriginal" type="success">
+                            <el-button @click="handleReplaceOriginal" type="primary">
                                 替换原文</el-button>
-                            <el-button @click="handleAbandonNewContent">弃用</el-button>
-                            <el-button @click="handleRegenerateNewContent">重新生成</el-button>
+                            <el-button @click="handleAbandonNewContent">取消</el-button>
+                            <el-button @click="handleRegenerateNewContent" type="warning">重新生成</el-button>
                         </div>
                     </div>
                 </div>
@@ -123,7 +137,7 @@ const paramsData = ref({
 const articleData = ref({})
 const value1 = ref(false)
 const cannotGenerate = ref(false)
-
+const currentElementText = ref('')
 
 const articleTypes = ref([])
 const languageStyles = ref([])
@@ -279,10 +293,13 @@ const trackClick = (e) => {
         iconLeft.value = rect.left - editorRect.left - 30;
         iconTop.value = rect.top - editorRect.top - 10;
         showMagicIcon.value = true;
-        console.log('已选中内容:', currentElement.value)
-        if (currentElement.value == target) return
-        currentElement.value = target
-        ElMessage.success('已获取当前段落/标题文本,可对其进行重写等操作')
+
+        if (currentElement.value !== target) {
+            currentElement.value = target
+            // 保存当前文本内容
+            currentElementText.value = target.innerText
+            ElMessage.success('已获取当前段落/标题文本,可对其进行重写等操作')
+        }
     } else {
         showMagicIcon.value = false;
     }
@@ -297,9 +314,14 @@ const handleAction = (type) => {
         text: currentElement.value.innerText,
         style: paramsData.value.languageStyle
     }
-    console.log(textParams)
+
+    // 重置新内容
+    newgenContent.value = ''
+    // 显示对比弹窗
     seeNewContent.value = true
     cannotGenerate.value = true
+    seeNewGenerating.value = true
+
     const queryString = new URLSearchParams(textParams).toString()
     const url = `http://localhost:3000/api/article/rewriteText?${queryString}`
     const eventSource = new EventSource(url)
@@ -322,19 +344,28 @@ const handleAction = (type) => {
 }
 
 // 替换文本 清空新生成的内容 隐藏弹窗 调整正在生成元素的布尔值
-const handleReplaceOriginal = () => {
+const handleReplaceOriginal = async () => {
     if (!currentElement.value) {
-        ElMessage.warning('未找到要替换的段落');
-        return;
+        ElMessage.warning('未找到要替换的段落')
+        return
     }
+
+    // 替换内容
     currentElement.value.innerText = newgenContent.value
-    seeNewContent.value = false;
-    newgenContent.value = '';
+    seeNewContent.value = false
+    newgenContent.value = ''
     seeNewGenerating.value = true
-    ElMessage.success('内容替换成功');
-    // 更新文章
-    updateArticleData()
-};
+
+    // 确保可以保存
+    const canSave = await saveAfterReplacement()
+    if (canSave) {
+        // 更新文章
+        await updateArticleData()
+        ElMessage.success('内容替换成功并已保存')
+    } else {
+        ElMessage.success('内容已替换，但未保存到服务器')
+    }
+}
 
 // 放弃新生成的文本
 const handleAbandonNewContent = () => {
@@ -351,10 +382,15 @@ const handleRegenerateNewContent = () => {
 }
 
 // 更新文章
+// 修改 updateArticleData 函数以确保这三个字段正确处理
 const updateArticleData = async () => {
     try {
         if (!editor.value) {
             throw new Error('编辑器实例未初始化')
+        }
+
+        if (!articleData.value || !articleData.value.id) {
+            throw new Error('文章数据不完整，无法更新')
         }
 
         // 获取完整 HTML
@@ -368,20 +404,54 @@ const updateArticleData = async () => {
         if (titleElement) titleElement.remove()
         const content = doc.body.innerHTML
 
-        // 构建更新数据
-        const updateData = {
-            article_type_id: articleData.value.article_type_id,
-            language_style_id: articleData.value.language_style_id,
-            content_template: {
-                contentId: articleData.value.content_template_id,
-                contentName: paramsData.value.contentTemplate
-            },
-            title: title,
-            content: content,
-            word_count: parseInt(paramsData.value.max_token) || 0,
+        // 从 paramsData 中获取类型和风格的 ID
+        const findId = (list, name) => {
+            const item = list.value.find(item => item.name === name)
+            return item ? item.id : null
         }
 
-        // 调用更新接口（假设 articleData.value.id 存在）
+        // 确保这三个字段有值
+        const article_type_id = articleData.value.article_type_id ||
+            findId(articleTypes, paramsData.value.articleType)
+
+        const language_style_id = articleData.value.language_style_id ||
+            findId(languageStyles, paramsData.value.languageStyle)
+
+        // 处理 content_template 字段
+        let content_template
+        if (articleData.value.content_template_id) {
+            content_template = {
+                contentId: articleData.value.content_template_id,
+                contentName: paramsData.value.contentTemplate || ''
+            }
+        } else if (articleData.value.contentTemplate) {
+            // 如果有 contentTemplate 对象
+            content_template = {
+                contentId: articleData.value.contentTemplate.id,
+                contentName: paramsData.value.contentTemplate || articleData.value.contentTemplate.content || ''
+            }
+        } else {
+            // 最后的备选方案
+            content_template = {
+                contentId: null,
+                contentName: paramsData.value.contentTemplate || ''
+            }
+        }
+
+        // 构建更新数据
+        const updateData = {
+            article_type_id: article_type_id,
+            language_style_id: language_style_id,
+            content_template: content_template,
+            title: title,
+            content: content,
+            word_count: parseInt(paramsData.value.max_token) || articleData.value.wordCount || 0,
+        }
+
+        console.log('文章ID:', articleData.value.id)
+        console.log('更新数据:', updateData)
+
+        // 调用更新接口
         const result = await updateArticle(articleData.value.id, updateData)
         console.log('更新结果:', result)
         ElMessage.success('文章已保存')
@@ -389,6 +459,27 @@ const updateArticleData = async () => {
         console.error('更新失败:', error)
         ElMessage.error(`保存失败: ${error.message}`)
     }
+}
+
+const saveAfterReplacement = async () => {
+    // 如果是从编辑页进入但没有 articleData，尝试从 route 获取并加载
+    if (!articleData.value || !articleData.value.id) {
+        if (route.query.id) {
+            try {
+                const { data } = await getArticleDetails(route.query.id)
+                articleData.value = data
+                ElMessage.info('已重新加载文章数据')
+            } catch (err) {
+                console.error('加载文章数据失败:', err)
+                ElMessage.error('加载文章数据失败，无法保存')
+                return false
+            }
+        } else {
+            ElMessage.warning('当前没有要更新的文章，请先保存')
+            return false
+        }
+    }
+    return true
 }
 
 
@@ -400,16 +491,62 @@ onMounted(async () => {
     articleTypes.value = articleStore.articleTypes
     await articleStore.getArticleStylesAction()
     languageStyles.value = articleStore.articleStyles
+
+    // 首先检查是否有文章ID (编辑现有文章)
     if (route.query.id) {
-        const { data } = await getArticleDetails(route.query.id)
-        // 直接填充表单
-        console.log(data, '文章列表跳转获取文章详情')
-        const articleBuffer = `${data.title}${data.content}`
-        editor.value?.commands?.setContent(articleBuffer)
-        paramsData.value.contentTemplate = data.contentTemplate.content
-        paramsData.value.max_token = data.wordCount
-        paramsData.value.articleType = data.articleType.name
-        paramsData.value.languageStyle = data.languageStyle.name
+        try {
+            const { data } = await getArticleDetails(route.query.id)
+            console.log(data, '文章列表跳转获取文章详情')
+
+            // 更新 articleData 对象，保存完整的文章数据
+            articleData.value = data
+
+            // 更新编辑器内容
+            const articleBuffer = `${data.title}${data.content}`
+            editor.value?.commands?.setContent(articleBuffer)
+
+            // 更新参数表单
+            paramsData.value.contentTemplate = data.contentTemplate?.content || ''
+            paramsData.value.max_token = data.wordCount
+            paramsData.value.articleType = data.articleType?.name || ''
+            paramsData.value.languageStyle = data.languageStyle?.name || ''
+
+            // 设置编辑模式
+            editorVisible.value = true
+        } catch (error) {
+            console.error('加载文章详情失败:', error)
+            ElMessage.error('加载文章详情失败')
+        }
+    }
+    // 检查是否有从话题页面传来的参数
+    else {
+        const storedParams = localStorage.getItem('articleCreationParams');
+        if (storedParams) {
+            try {
+                const params = JSON.parse(storedParams);
+                console.log('从话题页面接收到的参数:', params);
+
+                console.log(data, '文章列表跳转获取文章详情')
+
+                // 填充编辑器和表单
+                if (params.title) {
+                    // 可以选择是否将标题放入编辑器
+                    // 或者放到单独的标题输入框
+                    editor.value?.commands?.setContent(params.title);
+                }
+
+                // 填充参数表单
+                paramsData.value.contentTemplate = params.contentTemplate || '';
+                paramsData.value.max_token = params.max_token || 800;
+                paramsData.value.articleType = params.articleType || '';
+                paramsData.value.languageStyle = params.languageStyle || '';
+
+                // 使用后清除，避免下次进入页面时自动填充
+                localStorage.removeItem('articleCreationParams');
+            } catch (error) {
+                console.error('解析话题参数失败:', error);
+            }
+        }
     }
 })
 
@@ -424,189 +561,405 @@ const goBack = () => {
     display: flex;
     height: 100vh;
     overflow: hidden;
+    background-color: #f8fafc;
 }
 
-/* 左侧 */
+/* 左侧面板 */
 .left-panel {
     width: 30%;
     height: 100%;
-
-    padding-top: 60px;
+    padding-top: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    box-shadow: 0 0 8px 8px #ccc;
-
-    .left-params {
-        width: 80%;
-        height: 100%;
-    }
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    background-color: #fff;
+    z-index: 2;
 }
 
-/* 右侧 */
+.left-params {
+    width: 85%;
+    height: 100%;
+    padding: 10px 0;
+    overflow-y: auto;
+}
+
+.page-header {
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+}
+
+/* 右侧面板 */
 .right-panel {
     width: 70%;
     height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    box-shadow: 0 0 8px #ccc;
+    background-color: #f8fafc;
+    padding: 20px;
+    position: relative;
+}
 
-    /* 生成文章预览容器 */
-    .preview-container {
-        display: flex;
-        justify-content: center;
-        align-content: center;
-        flex-wrap: wrap;
-        flex-direction: column;
-        width: 100%;
-        height: 100%;
-        background-color: #FFFFFF;
+/* 生成文章预览容器 */
+.preview-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 20px;
+}
 
-        /* 预览页面 */
-        .preview-pane {
-            position: relative;
-            width: 80%;
-            max-height: 580px;
-            background-color: #FAFBFC;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 20px;
-            font-size: 20px;
-            white-space: pre-wrap;
-            word-break: break-word;
-            overflow: auto;
-            box-shadow: 0 0 8px 0 #ccc;
+/* 预览页面 */
+.preview-pane {
+    width: 85%;
+    max-height: 75vh;
+    margin: 0 auto;
+    background-color: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 30px 40px;
+    font-size: 16px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
 
-            .preview-bar {
-                width: 400px;
-                height: 60px;
-                box-shadow: 0 0 8px 0 #ccc;
-            }
-        }
+.preview-bar {
+    width: 85%;
+    margin: 20px auto 0;
+    display: flex;
+    justify-content: flex-end;
+}
 
-        /* 生成中状态 */
-        .generate-bar {
-            margin-top: 16px;
-            text-align: center;
-            padding: 10px 0;
-        }
+/* 生成中状态 */
+.generate-bar {
+    width: 100%;
+    text-align: center;
+    padding: 15px 0;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    animation: pulse 1.5s infinite;
+}
 
-        /* 生成完成状态 */
-        .save-bar {
-            margin-top: 16px;
-            text-align: right;
-            padding: 10px 0;
-        }
+@keyframes pulse {
+    0% {
+        opacity: 0.7;
     }
 
-    /* 编辑器容器 */
-    .editor-container {
-        width: 100%;
-        height: 100%;
-        position: relative;
+    50% {
+        opacity: 1;
+    }
 
-        /* Tiptap 编辑器样式 内容区父元素 实例化时 内容区是其子元素*/
-        .tiptap-editor {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            height: 100%;
-            background-color: #fff;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        /* 魔法变换父元素(点击内容定位时显现的浮动图标) */
-        .magic-icon {
-            position: absolute;
-            pointer-events: auto;
-            /* 防止图标阻挡文字选择 */
-            transition: opacity 0.2s;
-            font-size: 22px;
-            color: #666;
-            width: 60px;
-            height: 30px;
-
-
-            &:hover {
-                transform: scale(1.01);
-                color: var(--el-color-primary);
-                background-color: #DBEAFE;
-            }
-
-            /* 悬停在浮动图标的四种操作栏 */
-            .magic-bar {
-                position: absolute;
-                top: 30px;
-                display: none;
-
-                .el-button {
-                    width: 100%;
-                    margin: 0 !important;
-                    /* 覆盖默认margin */
-                }
-            }
-
-            &:hover .magic-bar {
-                display: flex;
-                flex-direction: column;
-            }
-        }
-
-        /* 重写等操作生成文本时的弹窗 */
-        .preview-content-text {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            position: absolute;
-            left: 0;
-            bottom: 0;
-            width: 100%;
-
-
-            .text-compare {
-                width: 90%;
-                padding: 20px;
-                min-height: 120px;
-                box-sizing: border-box;
-                overflow-y: auto;
-                box-shadow: 0 0 8px 0 #ccc;
-                border-radius: 6px;
-            }
-        }
+    100% {
+        opacity: 0.7;
     }
 }
 
+/* 生成完成状态 */
+.save-bar {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
 
+/* 编辑器容器 */
+.editor-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: flex;
+    justify-content: center;
+}
 
-/* 深度穿透样式 */
-::v-deep(.tiptap.ProseMirror) {
-    min-height: 400px;
+/* Tiptap 编辑器样式 */
+.tiptap-editor {
+    width: 85%;
     height: 90%;
+    background-color: #fff;
+    border-radius: 12px;
+    padding: 30px 40px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    overflow: auto;
+    margin: 0 auto;
+}
+
+/* 魔法变换图标 */
+.magic-icon {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    background-color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    color: #4d6bfe;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.magic-icon:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(77, 107, 254, 0.3);
+}
+
+/* 魔法操作栏 */
+.magic-bar {
+    position: absolute;
+    top: 30px;
+    left: -50px;
+    display: none;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    padding: 8px;
+    width: 120px;
+    z-index: 11;
+}
+
+.magic-bar .el-button {
+    width: 100%;
+    margin: 4px 0 !important;
+    border-radius: 6px;
+    height: 32px;
+    padding: 0 12px;
+    font-size: 14px;
+}
+
+.magic-icon:hover .magic-bar {
+    display: flex;
+    flex-direction: column;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 重写弹窗 */
+/* 重写弹窗样式更新 */
+.preview-content-text {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    max-width: 800px;
+    max-height: 80vh;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.text-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+}
+
+.text-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #334155;
+}
+
+.close-icon {
+    cursor: pointer;
+    font-size: 20px;
+    color: #64748b;
+    transition: color 0.2s;
+}
+
+.close-icon:hover {
+    color: #4d6bfe;
+}
+
+.text-compare {
+    padding: 0;
+    max-height: 60vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.original-text,
+.new-text {
+    padding: 15px 20px;
+    background-color: #fff;
+}
+
+.original-text {
+    border-bottom: 1px dashed #e2e8f0;
+}
+
+.text-label {
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 10px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+}
+
+.text-content {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #334155;
+    padding: 10px;
+    background-color: #f8fafc;
+    border-radius: 8px;
+    white-space: pre-wrap;
+}
+
+.text-content.generating {
+    position: relative;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.text-content.generating::after {
+    content: "...";
+    animation: ellipsis 1.5s infinite;
+    width: 20px;
+    display: inline-block;
+    text-align: left;
+    margin-left: 5px;
+}
+
+.previewe-bottom {
+    width: 100%;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: flex-end;
+    background-color: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+}
+
+.loading {
+    width: 100%;
+    text-align: center;
+    padding: 15px 0;
+    color: #4d6bfe;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.preview-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.loading::after {
+    content: "...";
+    animation: ellipsis 1.5s infinite;
+    width: 20px;
+    display: inline-block;
+    text-align: left;
+}
+
+@keyframes ellipsis {
+    0% {
+        content: ".";
+    }
+
+    33% {
+        content: "..";
+    }
+
+    66% {
+        content: "...";
+    }
+}
+
+.preview-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* ProseMirror 样式覆盖 */
+::v-deep(.tiptap.ProseMirror) {
+    min-height: 80vh;
+    max-height: 80vh;
     width: 100%;
     overflow: auto;
-    font-family: 'Georgia', serif;
-    background-color: #fff;
-    padding: 10px;
-    /* box-shadow: 0 0 8px #ccc;
-    box-sizing: border-box; */
+    font-family: 'Source Han Serif', 'Georgia', serif;
+    line-height: 1.8;
+    color: #334155;
+    padding: 10px 0;
 }
 
 ::v-deep(.tiptap.ProseMirror p) {
-    margin: 0.75rem 0;
+    margin: 1rem 0;
     text-indent: 2em;
     position: relative;
 }
 
 ::v-deep(.tiptap.ProseMirror h1) {
     font-size: 2.25rem;
+    font-weight: 600;
     color: #1e293b;
+    margin: 1.5rem 0 1rem;
+    line-height: 1.2;
 }
 
 ::v-deep(.tiptap.ProseMirror-focused) {
-    outline: 2px solid #DBEAFE;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(77, 107, 254, 0.1);
+    border-radius: 8px;
+}
+
+@media (max-width: 1200px) {
+    .container {
+        flex-direction: column;
+    }
+
+    .left-panel,
+    .right-panel {
+        width: 100%;
+    }
+
+    .left-panel {
+        height: auto;
+        min-height: 300px;
+        max-height: 40vh;
+        overflow-y: auto;
+    }
+
+    .right-panel {
+        height: 60vh;
+    }
+
+    .preview-pane,
+    .tiptap-editor {
+        width: 95%;
+    }
 }
 </style>

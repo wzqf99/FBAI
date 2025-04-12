@@ -38,7 +38,7 @@ const handleCheck = (index) => {
     currentIndex.value = index
 }
 const topicGenerateRef = ref(null);
-// 从热搜这个组件传过来的值  接受热搜组件的传值 传入
+// 从热搜这个组件传过来的值  接受热搜组件的传值 更新话题组件的参数
 const cpncheck = (index, title, desc) => {
     currentIndex.value = index
     console.log(index, title, desc, "子组件传过来的值")
