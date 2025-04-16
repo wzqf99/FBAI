@@ -31,6 +31,7 @@ const route = useRoute()
 
   .Sidebar {
     width: 250px;
+    flex-shrink: 0;
   }
 
   .content {

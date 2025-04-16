@@ -525,9 +525,6 @@ onMounted(async () => {
             try {
                 const params = JSON.parse(storedParams);
                 console.log('从话题页面接收到的参数:', params);
-
-                console.log(data, '文章列表跳转获取文章详情')
-
                 // 填充编辑器和表单
                 if (params.title) {
                     // 可以选择是否将标题放入编辑器
