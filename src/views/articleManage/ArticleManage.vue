@@ -2,7 +2,7 @@
  * @Author: yelan wzqf99@foxmail.com
  * @Date: 2025-02-18 16:22:43
  * @LastEditors: yelan wzqf99@foxmail.com
- * @LastEditTime: 2025-04-14 21:21:28
+ * @LastEditTime: 2025-05-10 23:29:53
  * @FilePath: \AI_vue3\vue-aigc\src\views\articleManage\ArticleManage.vue
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -99,7 +99,7 @@
             </el-table>
         </div>
         <!-- 分页功能 -->
-        <div class="pagination-block">
+        <div class="pagination-block" v-if="pagination && pagination.page">
             <el-pagination v-model:current-page="pagination.page" v-model:page-size="pagination.pageSize"
                 :page-sizes="[6, 8, 10]" :disabled="disabled" :background="background"
                 layout=" prev, pager, next,jumper, sizes,total " :total="pagination.total"
@@ -133,6 +133,8 @@ const pageSize = ref(8)
 
 console.log(articleTypes, articleList, "11");
 
+const disabled = ref(false);  // 分页禁用状态
+const background = ref(true); // 分页背景状态
 const params = ref({
     title: '',
     article_type: '',
@@ -150,12 +152,12 @@ const handleEdit = (row) => {
     })
 }
 
+
 const handleExport = async (row) => {
     const result = await getArticleDetails(row.id)
     const article = result.data
     const content = `# ${article.title}\n\n${article.content}`;
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob); // 创建 Blob URL
     link.download = `${article.title}.txt`;
@@ -164,16 +166,21 @@ const handleExport = async (row) => {
 }
 
 const handleDelte = async (row) => {
-    const id = await articleStore.deleteArticleAction(row.id)
-    ElMessage({
-        message: `成功删除id为${id}的文章`,
-        type: 'success',
-    })
-    loadArticleData()
+    try {
+        console.log(row, "删除");
+        const id = await articleStore.deleteArticleAction(row.id)
+        ElMessage({
+            message: `成功删除id为${id}的文章`,
+            type: 'success',
+        })
+        loadArticleData()
+    } catch (error) {
+        console.error('删除失败:', error)
+        ElMessage.error('删除失败，请稍后重试')
+    }
 }
 
 const handleDateChange = () => {
-    console.log(DateTime.value, "当前获取的时间")
     if (!DateTime.value || DateTime.value.length === 0) {
         params.value.start_date = '';
         params.value.end_date = '';
@@ -188,11 +195,9 @@ const handleSearch = () => {
     if (isSearch.value) {
         loadArticleData();
     } else {
-        // 如果没有搜索，分页时不携带 params
         loadArticleDataWithoutParams();
     }
 }
-
 const handleCurrentChange = (newPage) => {
     page.value = newPage
     if (isSearch.value) {
@@ -201,18 +206,15 @@ const handleCurrentChange = (newPage) => {
         loadArticleDataWithoutParams();
     }
 }
-
 const handleSizeChange = (newSize) => {
     pageSize.value = newSize
     loadArticleData()
 }
-
 const loadArticleData = async () => {
     await articleStore.getArticleListAction(user_id, page.value, pageSize.value, params.value)
 }
 
 const loadArticleDataWithoutParams = async () => {
-    // 如果没有进行搜索，分页时清空 params，只带分页参数
     const emptyParams = {
         title: '',
         article_type: '',
@@ -227,6 +229,7 @@ const loadTypes = async () => {
     await articleStore.getArticleTypesAction()
 }
 onMounted(() => {
+    console.log('ArticleManage组件已挂载，开始加载数据');
     loadArticleData()
     loadTypes()
 })

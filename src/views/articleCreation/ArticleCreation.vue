@@ -149,10 +149,8 @@ const editor = useEditor({
     autofocus: true,
     editable: true,
     onUpdate: ({ editor }) => {
-        // 监听内容变化
         const html = editor.getHTML()
         const json = editor.getJSON()
-        console.log('内容变化:', { html, json })
     },
 })
 
@@ -163,12 +161,9 @@ const editorVisible = ref(true) // 默认显示编辑器
 const sseFinished = ref(false)
 // 提交参数并生成文章
 const handlesumbit = () => {
-    // 控制按钮为不可用
     cannotGenerate.value = true
-    // 隐藏编辑器，显示预览
     editorVisible.value = false
     sseGenerating.value = true
-    // 重置数据
     sseBuffer.value = ''
     sseFinished.value = false
     const queryString = new URLSearchParams(paramsData.value).toString()
@@ -314,7 +309,6 @@ const handleAction = (type) => {
         text: currentElement.value.innerText,
         style: paramsData.value.languageStyle
     }
-
     // 重置新内容
     newgenContent.value = ''
     // 显示对比弹窗
@@ -336,7 +330,6 @@ const handleAction = (type) => {
         newgenContent.value += event.data
     }
     eventSource.onerror = (error) => {
-        console.error('EventSource 错误:', error)
         eventSource.close()
         seeNewGenerating.value = false
         cannotGenerate.value = false
@@ -872,6 +865,7 @@ const goBack = () => {
 .preview-actions {
     display: flex;
     gap: 10px;
+    margin: 30px;
 }
 
 .loading::after {

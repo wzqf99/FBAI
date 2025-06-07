@@ -67,7 +67,6 @@ async function loadmessages() {
     console.log(res.data, "原始数据");
     let allList = [];
     let i = 1;
-    // 处理每个分类的数据
     for (let key of Object.keys(listObj)) {
       listObj[key].forEach((item) => {
         allList.push({
@@ -80,8 +79,6 @@ async function loadmessages() {
         i++;
       });
     }
-
-    // 添加全部分类
     listObj["all"] = allList;
     allHotMessages.value = listObj;
     console.log(allHotMessages.value, "最终数据");

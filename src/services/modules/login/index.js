@@ -10,15 +10,15 @@ import MYRequest from "../../request/index";
 
 // 登录 {usernameOrEmail:string,password:string}
 export function accountLogin(account) {
-  return MYRequest.post({ url: "/login", data: account });
+  return MYRequest.post({ url: "/user/login", data: account });
 }
 
 // 注册 { username, email, password }
 export function accountRegister(account) {
-  return MYRequest.post({ url: "register", data: account });
+  return MYRequest.post({ url: "/user/register", data: account });
 }
 
 // 登出 请求拦截器中请求头带token
 export function accountLogout() {
-  return MYRequest.post({ url: "logout" });
+  return MYRequest.post({ url: "/user/logout" });
 }

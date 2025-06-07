@@ -2,7 +2,7 @@
  * @Author: yelan wzqf99@foxmail.com
  * @Date: 2025-02-18 16:22:19
  * @LastEditors: yelan wzqf99@foxmail.com
- * @LastEditTime: 2025-03-06 16:43:04
+ * @LastEditTime: 2025-05-11 00:44:29
  * @FilePath: \AI_vue3\vue-aigc\src\views\home\Home.vue
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
 -->
@@ -28,7 +28,7 @@
                         <Right />
                     </el-icon>
                 </div>
-                <div class="guide-item">
+                <div class="guide-item" @click="pushtoCreation">
                     <div class="top">
                         <el-icon :size="40" color="#FF5A72">
                             <EditPen />
@@ -44,7 +44,7 @@
                         <Right />
                     </el-icon>
                 </div>
-                <div class="guide-item">
+                <div class="guide-item" @click="pushtoCreation">
                     <div class="top">
                         <el-icon :size="40" color="#6291FF">
                             <Reading />
@@ -60,7 +60,7 @@
                         <Right />
                     </el-icon>
                 </div>
-                <div class="guide-item">
+                <div class="guide-item" @click="pushtoCreation">
                     <div class="top">
                         <el-icon :size="40" color="#56D1D8">
                             <QuestionFilled />
@@ -83,34 +83,18 @@
                 <div class="hotmessage">
                     <div class="header">
                         <span>选题推荐</span>
-                        <div class="refresh">
+                        <div class="refresh" @click="changeRecommendation">
                             <el-icon>
                                 <Refresh />
                             </el-icon>
                             <span>换一换</span>
                         </div>
-
                     </div>
                     <div class="bottom">
-                        <div class="message">
-                            <i>1</i>
-                            <li>独立游戏开发:如何避免盲目跟风</li>
-                        </div>
-                        <div class="message">
-                            <i>2</i>
-                            <li>四川被拐男子靠腊肉折耳根锁定家乡：美食如何成为寻根的桥梁</li>
-                        </div>
-                        <div class="message">
-                            <i>3</i>
-                            <li>《哪吒2》在俄罗斯上映：中俄文化交融的新里程碑？</li>
-                        </div>
-                        <div class="message">
-                            <i>4</i>
-                            <li>独立游戏开发:如何避免盲目跟风</li>
-                        </div>
-                        <div class="message">
-                            <i>5</i>
-                            <li>独立游戏开发:如何避免盲目跟风</li>
+                        <div class="message" v-for="(item, index) in currentRecommendations" :key="index"
+                            @click="handleTopicClick(item)">
+                            <i>{{ index + 1 }}</i>
+                            <li>{{ item.title }}</li>
                         </div>
                     </div>
                 </div>
@@ -118,32 +102,17 @@
                 <div class="tools">
                     <div class="header">AI工具箱</div>
                     <div class="toolscollection">
-                        <div class="tool-item">
+                        <div class="tool-item"  v-for="(tool, index) in tools" :key="index" @click="pushtoCreation">
                             <el-icon size="20">
-                                <EditPen />
+                                <component :is="tool.icon" />
                             </el-icon>
-                            <span class="title">起标题</span>
-                            <span class="des">快速生成吸睛标题</span>
-                        </div>
-                        <div class="tool-item">
-                            <el-icon size="20">
-                                <EditPen />
-                            </el-icon>
-                            <span class="title">起标题</span>
-                            <span class="des">快速生成吸睛标题</span>
-                        </div>
-                        <div class="tool-item">
-                            <el-icon size="20">
-                                <EditPen />
-                            </el-icon>
-                            <span class="title">起标题</span>
-                            <span class="des">快速生成吸睛标题</span>
+                            <span class="title">{{ tool.title }}</span>
+                            <span class="des">{{ tool.description }}</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-
     </div>
 </template>
 
@@ -151,6 +120,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from 'vue-router';
 import TypeIt from 'typeit' // 引入typeit 打字机效果    
+
 const text = ref(null)
 onMounted(() => {
     new (TypeIt)(text.value, {
@@ -168,6 +138,77 @@ const router = useRouter();
 const pushtoCreation = () => {
     router.push('/articleCreation')
 }
+
+const handleTopicClick = (topic) => {
+    // 将选中的话题信息存储到本地存储
+    localStorage.setItem('selectedTopic', JSON.stringify({
+        index: 999, // 特殊索引表示来自首页
+        title: topic.title,
+        desc: "" // 描述为空
+    }));
+    // 跳转到话题页面
+    router.push('/topic');
+}
+
+
+// 推荐选题数据组
+const recommendationGroups = [
+    [
+        { title: "《哪吒2》总票房将超越《泰坦尼克号》" },
+        { title: "四川被拐男子靠腊肉折耳根锁定家乡：美食如何成为寻根的桥梁" },
+        { title: "《哪吒2》在俄罗斯上映：中俄文化交融的新里程碑？" },
+        { title: "独立游戏开发:如何避免盲目跟风" },
+        { title: "特朗普称对进口电影征收100%关税" }
+    ],
+    [
+        { title: "数字人民币应用场景扩大：移动支付的下一个风口？" },
+        { title: "ChatGPT5发布：AI技术的新高度与人类的新思考" },
+        { title: "居家养老新挑战：如何利用智能科技解决老龄化社会问题" },
+        { title: "全国首个24小时无人书店：商业模式创新还是文化传播新路径？" },
+        { title: "电动自行车起火事件频发：安全隐患背后的行业乱象" }
+    ],
+    [
+        { title: "二十四节气与现代生活：传统智慧在当代的实践意义" },
+        { title: "新能源汽车降价潮：行业洗牌还是普及契机？" },
+        { title: "数字藏品市场遇冷：NFT泡沫破灭还是沉淀调整？" },
+        { title: "短视频带货乱象调查：虚假宣传背后的消费陷阱" },
+        { title: "亚运会电竞首次成为正式比赛项目：体育与电子竞技的融合" }
+    ],
+    [
+        { title: "乡村振兴中的文创产业：如何激活传统手工艺" },
+        { title: "低碳生活方式普及：个人选择与社会责任的平衡" },
+        { title: "元宇宙教育探索：虚拟现实如何改变传统课堂" },
+        { title: "城市屋顶农场兴起：都市农业的可能性与挑战" },
+        { title: "国产科幻电影崛起：从技术突破到文化自信" }
+    ]
+];
+
+// 当前显示的推荐组索引
+const currentGroupIndex = ref(0);
+const currentRecommendations = ref(recommendationGroups[0]);
+const changeRecommendation = () => {
+    currentGroupIndex.value = (currentGroupIndex.value + 1) % recommendationGroups.length;
+    currentRecommendations.value = recommendationGroups[currentGroupIndex.value];
+}
+
+// AI工具箱数据
+const tools = [
+    {
+        icon: "EditPen",
+        title: "起标题",
+        description: "快速生成吸睛标题"
+    },
+    {
+        icon: "Document",
+        title: "文章润色",
+        description: "一键优化文章表达"
+    },
+    {
+        icon: "Reading",
+        title: "内容扩写",
+        description: "丰富文章内容细节"
+    }
+];
 </script>
 
 <style lang="less" scoped>

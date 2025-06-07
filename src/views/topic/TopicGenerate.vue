@@ -141,23 +141,20 @@ const parapmsSelect = ref({
     desc: "",
     input: formData.userInput
 })
-// 一次生成四条数据 生成话题
 const loadData = async () => {
     isGenerate.value = true
     const promiseArr = Array.from({ length: 4 }, () => fetchTopicJson(parapmsSelect.value))
     const result = await Promise.all(promiseArr)
-    console.log(result, "返回的数据")
-
     for (let i = 0; i < result.length; i++) {
-        // 为每个话题添加isCollected字段
         const topic = result[i].data[0];
-        topic.isCollected = false; // 初始状态为未收藏
+        topic.isCollected = false;
         list.value.push(topic);
     }
     isGenerate.value = false
 }
 // 更新话题参数 由父组件调用
 const updateTopicData = (index, title, desc) => {
+    console.log(index, title, desc, "更新话题参数")
     parapmsSelect.value.title = title || parapmsSelect.value.title;
     parapmsSelect.value.desc = desc || parapmsSelect.value.desc;
 };
@@ -237,8 +234,6 @@ function wirteArticle(item, index) {
     // 导航到文章创作页
     router.push('/articleCreation');
 }
-
-
 defineExpose({
     updateTopicData
 })

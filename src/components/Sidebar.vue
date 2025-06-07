@@ -23,7 +23,8 @@ import {
     Edit,
     Collection,
     SetUp,
-    User
+    User,
+    DataAnalysis
 } from '@element-plus/icons-vue'
 import { ref, watch, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
@@ -33,13 +34,15 @@ const Icons = {
     Edit,
     Collection,
     SetUp,
-    User
+    User,
+    DataAnalysis
 }
 const sidebarData = [
     { name: '创作首页', path: '/home', icon: 'Edit' },
     { name: '作品管理', path: '/artichleManage', icon: 'Collection' },
     { name: '选题中心', path: '/topic', icon: 'SetUp' },
-    { name: '个人空间', path: '/userSpace', icon: 'User' }
+    { name: '文章数据', path: '/userSpace', icon: 'DataAnalysis' },
+    { name: '个人中心', path: '/userInfo', icon: 'User' }
 ];
 const currentIndex = ref(0);
 const pushtoview = (item, index) => {
